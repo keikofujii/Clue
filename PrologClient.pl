@@ -14,7 +14,7 @@
 %
 % Author:   1668650
 % Written:  3/29/05
-% Version:  2.0 
+% Version:  2.0 - this shouldn't be the dumb player but it is.
 %
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -61,7 +61,7 @@ deduceHasCard :-
   cantHave(Player, Room), 
   \+ deducedHasCard(Player, Suspect), % See if the fact already is known
   addNewFact(deducedHasCard(Player, Suspect)), writeLog(['DHS1']),
-  isSusAnswer(_).
+  isSuspect(_S).
 
 % Checks to see if we can deduce that they knew the weapon
 deduceHasCard :- 
@@ -70,7 +70,7 @@ deduceHasCard :-
   cantHave(Player, Room), 
   \+ deducedHasCard(Player, Weapon), % See if the fact already is known
   addNewFact(deducedHasCard(Player, Weapon)), writeLog(['DHS2']),
-  isWeapAnswer(_).
+  isWeapon(_W).
 
 % Checks to see if we can deduce that they knew the room
 deduceHasCard :- 
@@ -79,7 +79,7 @@ deduceHasCard :-
   cantHave(Player, Suspect), 
   \+ deducedHasCard(Player, Room), % See if the fact already is known
   addNewFact(deducedHasCard(Player, Room)), writeLog(['DHS3']),
-  isRoomAnswer(_).
+  isRoom(_R).
 
 % Base case, just pass
 deduceHasCard.
@@ -295,11 +295,13 @@ randomElement(List, RandomElement) :-
 pickSuspect(S) :- isSuspect(S), writeLog(['PS1']).
 
 % Pick a random suspect from the possible suspects
-pickSuspect(S) :- possibleSuspects(SusList), randomElement(SusList, S), writeLog(['PS2']).
+pickSuspect(S) :- possibleSuspects(SusList), 
+    randomElement(SusList, S), writeLog(['PS2']).
 
 % Pick a random suspect from any of the suspects
 pickSuspect(S) :- setof(Sus, suspect(Sus), Ss),
      randomElement(Ss, S), writeLog(['PS3']).
+
 
 % Can pick based on probability?
 
@@ -314,22 +316,27 @@ pickWeapon(W) :- isWeapon(W), writeLog(['PW1']).
 % Pick the weapon with the highest probability of being in the answer
 % The weapon that the highest amount of people can't have it
 % Get the number of people that can't have the weapon
-    
+% Get a list of all the weapons and the number of people that can't have them
+% Get number of people that can't have a weapon (sorted with setof)
+% Use numCantHave and send in a number to bind to a weapon
+%pickWeapon(W) :- setof(NumWeapons, weapon(W), %No one has it, numCantHave(Player, Weapon), )
 
 % Pick a random weapon from the possible weapons
-pickWeapon(W) :- possibleWeapons(WeapList), randomElement(WeapList, W), writeLog(['PW2']).
+pickWeapon(W) :- possibleWeapons(WeapList), 
+    randomElement(WeapList, W), writeLog(['PW2']).
 
 % Pick a random weapon from any of the weapons
 pickWeapon(W) :- setof(Weap, weapon(Weap), Ws),
-     randomElement(Ws, W), writeLog(['PW3']).
+    randomElement(Ws, W), writeLog(['PW3']).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 % Room selection rules
 %%%%%%%%%%%%%%%%%%%%%%%%%
 % Pick a room next to the room I'm in that is still possible
-pickRoom(NewRoom) :- iAm(Me), isIn(Me, Room), adjacent(Room, NewRoom),
-                     possibleRooms(P), member(NewRoom, P), writeLog(['PickRoom1']).
+pickRoom(NewRoom) :- 
+    iAm(Me), isIn(Me, Room), adjacent(Room, NewRoom),
+    possibleRooms(P), member(NewRoom, P), writeLog(['PickRoom1']).
 
 % If none of the rooms around me are possible then choose a room that is closest 
 % to another possible room
@@ -337,16 +344,23 @@ pickRoom(NewRoom) :- iAm(Me), isIn(Me, Room), adjacent(Room, NewRoom),
 % Pick a random? one from the list 
 % Find path to any of the unknown nodes 
 % Not sure if this works well or not
-pickRoom(NewRoom) :- writeLog(['Trying PR2']), iAm(Me), isIn(Me, MyRoom), possibleRooms(Good), setof(D, G^(member(G, Good), distance(MyRoom, G, D)), [Dist | _]),
-  setof(R, distance(MyRoom, R, Dist), [ DestRoom | _]), nextRoom(MyRoom, DestRoom, NewRoom), writeLog(['Pick Room', NewRoom]).
+pickRoom(NewRoom) :- writeLog(['Trying PR2']), iAm(Me), isIn(Me, MyRoom), 
+    possibleRooms(Good), setof(D, G^(member(G, Good), 
+    distance(MyRoom, G, D)), [Dist | _]),
+    setof(R, distance(MyRoom, R, Dist), [ DestRoom | _]), 
+    nextRoom(MyRoom, DestRoom, NewRoom), writeLog(['Pick Room', NewRoom]).
 
 % Pick a room next to the room I'm in
-pickRoom(NewRoom) :- iAm(Me), isIn(Me, Room), adjacent(Room, NewRoom), writeLog(['PickRoom3']).
+pickRoom(NewRoom) :- iAm(Me), isIn(Me, Room), adjacent(Room, NewRoom), 
+    writeLog(['PickRoom3']).
 
 % Get the number of players that can't have a card
 numCantHave(Card, Num) :-
-     findall(Player, suspect(Player), cantHave(Player, Card), WhoCantHaveCard), list_to_set(WhoCantHaveCard, SetWhoCantHaveCard),
-     length(SetWhoCantHaveCard, Num), writeLog(['numCantHave', Card, ' ', WhoCantHaveCard]).
+    findall(Player, suspect(Player), 
+    cantHave(Player, Card), WhoCantHaveCard), 
+    list_to_set(WhoCantHaveCard, SetWhoCantHaveCard),
+    length(SetWhoCantHaveCard, Num), 
+    writeLog(['numCantHave', Card, ' ', WhoCantHaveCard]).
 
 %******
 % Facts about which rooms are next to which rooms in Clue
@@ -422,8 +436,6 @@ extend([Node | Path], NewPaths) :-
 % return an emtpy list of new paths
 extend(_,[]).
 
-%******
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -473,15 +485,23 @@ isSuspect(S) :- possibleSuspects([S]), writeLog(['isSus1', S]),
 isSuspect(S) :- suspect(S), numCantHave(S, Num), allSuspects(AllS), 
     length(AllS, Num), writeLog(['isSus2', S]), addNewFact(isSusAnswer(S)).
 
+% One way to prove that I know a part of the solution is if there is 
+% only one card left in the set of possible objects 
 isWeapon(W) :- possibleWeapons([W]), writeLog(['isWeap1', W]),
     addNewFact(isWeapAnswer(W)).
 
+% if we know that the number of players that can't have a weapon is the number
+% of weapons, then we know that the weapon must be the answer
 isWeapon(W) :- weapon(W), numCantHave(W, Num), allWeapons(AllW), 
     length(AllW, Num), writeLog(['isWeap2', W]), addNewFact(isWeapAnswer(W)).
 
+% One way to prove that I know a part of the solution is if there is 
+% only one card left in the set of possible objects 
 isRoom(R) :- possibleRooms([R]), writeLog(['isRoom1', R]), 
     addNewFact(isRoomAnswer(R)), addNewFact(isRoomAnswer(R)).
 
+% if we know that the number of players that can't have a room is the number
+% of rooms, then we know that the room must be the answer
 isRoom(R) :- room(R), numCantHave(R, Num), allRooms(AllR), 
     length(AllR, Num), writeLog(['isRoom2', R]),
     addNewFact(isRoomAnswer(R)).
@@ -497,7 +517,6 @@ hasCard(Player, Card) :- showedMe(Player, Card).
 hasCard(Player, Card) :- deducedHasCard(Player, Card).
 
 
-
 % Ways to prove a person does NOT have a card - the key to finding solution!
 % 1) non-active suspects can not have any cards
 cantHave(Player, Card) :- suspect(Player), \+ activePlayer(Player).
@@ -509,16 +528,16 @@ cantHave(Player, Card) :- iAm(Player), \+ iHave(Card).
 cantHave(Player, Card) :- hasCard(Player2, Card), Player2 \== Player.
 
 % 4) If the solution has the card
-cantHave(Player, Card) :- isSusAnswer(Card).
-cantHave(Player, Card) :- isWeapAnswer(Card).
-cantHave(Player, Card) :- isRoomAnswer(Card).
+cantHave(_Player, Card) :- isSusAnswer(Card).
+cantHave(_Player, Card) :- isWeapAnswer(Card).
+cantHave(_Player, Card) :- isRoomAnswer(Card).
 
 % 5) If a suggestion was made with the card and they didn't refute it
-cantHave(Player, Card) :- suggested(Card, Weapon, Room, Player), 
+cantHave(Player, Card) :- suggested(Card, Weapon, Room, _P), 
   didntRefute(Card, Weapon, Room, Player).
-cantHave(Player, Card) :- suggested(Suspect, Card, Room, Player), 
+cantHave(Player, Card) :- suggested(Suspect, Card, Room, _P), 
   didntRefute(Suspect, Card, Room, Player).
-cantHave(Player, Card) :- suggested(Suspect, Weapon, Card, Player), 
+cantHave(Player, Card) :- suggested(Suspect, Weapon, Card, _P), 
   didntRefute(Suspect, Weapon, Card, Player).
   
 
