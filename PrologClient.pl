@@ -14,7 +14,7 @@
 %
 % Author:   1668650
 % Written:  3/29/05
-% Version:  2.0 - this shouldn't be the dumb player but it is.
+% Version:  2.0 
 %
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -285,8 +285,8 @@ makeSuggestion(Suspect, Weapon, Room, Me) :-
 % Get a random element from a list 
 randomElement(List, RandomElement) :-
      length(List, Len), Len > 0,
-     Index is random(Len),
-     nth0(Index, List, RandomElement), writeLog(['RandomElement']).
+     Index is random(Len), writeLog(['RandomElementList', List]),
+     nth0(Index, List, RandomElement), writeLog(['RandomElement', RandomElement]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 % Suspect selection rules
@@ -294,13 +294,19 @@ randomElement(List, RandomElement) :-
 % If I know who it is, use that suspect
 pickSuspect(S) :- isSuspect(S), writeLog(['PS1']).
 
+pickSuspect(S) :- 
+  writeLog(['trying PS2']), setof(possibleSuspects(Poss), (member(Sus, Poss), numCantHave(Sus, NumSuspects)), NumCantHaveSus),  
+  last(NumCantHaveSus, MaxNum), writeLog(['setof2']),
+  setof(Suspect, (suspect(Suspect), numCantHave(Suspect, MaxNum)), MaxCantHaveSus), 
+  randomElement(MaxCantHaveSus, S), writeLog(['PS2', S]).
+
 % Pick a random suspect from the possible suspects
 pickSuspect(S) :- possibleSuspects(SusList), 
-    randomElement(SusList, S), writeLog(['PS2']).
+    randomElement(SusList, S), writeLog(['PS3']).
 
 % Pick a random suspect from any of the suspects
 pickSuspect(S) :- setof(Sus, suspect(Sus), Ss),
-     randomElement(Ss, S), writeLog(['PS3']).
+     randomElement(Ss, S), writeLog(['PS99']).
 
 
 % Can pick based on probability?
@@ -311,7 +317,6 @@ pickSuspect(S) :- setof(Sus, suspect(Sus), Ss),
 % If I know what they used, use that weapon 
 pickWeapon(W) :- isWeapon(W), writeLog(['PW1']).
 
-
 %*****
 % Pick the weapon with the highest probability of being in the answer
 % The weapon that the highest amount of people can't have it
@@ -321,13 +326,25 @@ pickWeapon(W) :- isWeapon(W), writeLog(['PW1']).
 % Use numCantHave and send in a number to bind to a weapon
 %pickWeapon(W) :- setof(NumWeapons, weapon(W), %No one has it, numCantHave(Player, Weapon), )
 
+%Hansen's
+%find # of people who can't have a card
+%get setof numbers of people who can't have
+% max num is the last 
+%get the last
+% do the same thing as the first query but send in the max(last)
+pickWeapon(W) :- 
+  writeLog(['trying PW2']), setof(NumWeapons, (possibleWeapons(Poss), member(Weap, Poss), numCantHave(Weap, NumWeapons)), NumCantHaveWeap),  
+  last(NumCantHaveWeap, MaxNum), writeLog(['setof2']),
+  setof(Weapon, (weapon(Weapon), numCantHave(Weapon, MaxNum)), MaxCantHaveWeap), 
+  randomElement(MaxCantHaveWeap, W), writeLog(['PW2', W]).
+
 % Pick a random weapon from the possible weapons
 pickWeapon(W) :- possibleWeapons(WeapList), 
-    randomElement(WeapList, W), writeLog(['PW2']).
+    randomElement(WeapList, W), writeLog(['PW3']).
 
 % Pick a random weapon from any of the weapons
 pickWeapon(W) :- setof(Weap, weapon(Weap), Ws),
-    randomElement(Ws, W), writeLog(['PW3']).
+    randomElement(Ws, W), writeLog(['PW99']).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -350,36 +367,35 @@ pickRoom(NewRoom) :- writeLog(['Trying PR2']), iAm(Me), isIn(Me, MyRoom),
     setof(R, distance(MyRoom, R, Dist), [ DestRoom | _]), 
     nextRoom(MyRoom, DestRoom, NewRoom), writeLog(['Pick Room', NewRoom]).
 
+% Hansen's player loves corners  because there are more options
+% Find the room that has the most still possible
+% find all the rooms adjacent to the one that you're looking at 
+
+% If rooms are equal probability, then Hansen knows the turn order so he chooses the one farthest away
+
+% You can get each players' number of cards by dividing, then use modulo and the remainder 
+% if remainder is 4 then first four have extra cards
+
+% don't give away extra info at the end of the turn 
+% Check to make sure that you know the answer, then suggest trash and then make the accusation
+
 % Pick a room next to the room I'm in
 pickRoom(NewRoom) :- iAm(Me), isIn(Me, Room), adjacent(Room, NewRoom), 
     writeLog(['PickRoom3']).
 
 % Get the number of players that can't have a card
 numCantHave(Card, Num) :-
-    findall(Player, suspect(Player), 
-    cantHave(Player, Card), WhoCantHaveCard), 
+    writeLog(['trying NCH']),
+    findall(Player, (suspect(Player), 
+    cantHave(Player, Card)), WhoCantHaveCard), 
     list_to_set(WhoCantHaveCard, SetWhoCantHaveCard),
     length(SetWhoCantHaveCard, Num), 
     writeLog(['numCantHave', Card, ' ', WhoCantHaveCard]).
 
-%******
-% Facts about which rooms are next to which rooms in Clue
-nextTo(hall, study).
-nextTo(study, library).
-nextTo(library, billiardRoom).
-nextTo(billiardRoom, conservatory).
-nextTo(conservatory, ballroom).
-nextTo(ballroom, kitchen).
-nextTo(kitchen, diningRoom).
-nextTo(diningRoom, lounge).
-nextTo(lounge, hall).
-nextTo(lounge, conservatory).
-nextTo(study, kitchen).
-
-% The actual relation we will use is adjacent() which is defined by noting
-% that the nextTo() relation is really bi-directional
-adjacent(X,Y) :- nextTo(X,Y).
-adjacent(X,Y) :- nextTo(Y,X).
+%% % The actual relation we will use is adjacent() which is defined by noting
+%% % that the nextTo() relation is really bi-directional
+%% adjacent(X,Y) :- nextTo(X,Y).
+%% adjacent(X,Y) :- nextTo(Y,X).
 
 
 %%%%%%%%%%%%%%%%
@@ -519,7 +535,7 @@ hasCard(Player, Card) :- deducedHasCard(Player, Card).
 
 % Ways to prove a person does NOT have a card - the key to finding solution!
 % 1) non-active suspects can not have any cards
-cantHave(Player, Card) :- suspect(Player), \+ activePlayer(Player).
+cantHave(Player, _Card) :- suspect(Player), \+ activePlayer(Player).
 
 % 2) If I am the player and do not have the card
 cantHave(Player, Card) :- iAm(Player), \+ iHave(Card).
